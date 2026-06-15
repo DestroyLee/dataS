@@ -1,0 +1,36 @@
+# 源数据库配置 (MySQL)
+source:
+  type: mysql
+  host: 192.168.1.100          # 修改为你的MySQL地址
+  port: 3306
+  user: root                   # 修改为你的用户名
+  password: your_password      # 修改为你的密码
+  database: order_db           # 修改为你的源数据库名
+
+# 目标数据库配置 (Doris)
+target:
+  type: doris
+  fe_host: 192.168.1.200       # 修改为你的Doris FE地址
+  http_port: 8030
+  query_port: 9030
+  user: root                   # 修改为你的Doris用户名
+  password: your_password      # 修改为你的Doris密码
+  database: ods_order_db       # 修改为你的目标数据库名
+
+# 默认配置
+defaults:
+  bucket_strategy: auto        # 自动分桶策略
+  replication: 3               # 副本数
+
+# 需要同步的表配置
+tables:
+  - table_name: t_order_info
+    unique_keys: ["order_id", "update_time"]  # Unique Key字段，可为空
+    # distribution_columns: ["order_id"]      # 可选：自定义分布列，不填则自动选择
+    
+  - table_name: t_order_detail
+    unique_keys: ["order_id", "sku_id"]
+    
+  - table_name: t_user_profile
+    unique_keys: ["user_id"]
+    # 如果不配置unique_keys，则生成普通表

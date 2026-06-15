@@ -1,0 +1,54 @@
+{
+  "job": {
+    "setting": {
+      "speed": {
+        "channel": 3
+      },
+      "errorLimit": {
+        "record": 0,
+        "percentage": 0.02
+      }
+    },
+    "content": [
+      {
+        "reader": {
+          "name": "mysqlreader",
+          "parameter": {
+            "username": "{{ reader.username }}",
+            "password": "{{ reader.password }}",
+            "column": ["*"],
+            "connection": [
+              {
+                "table": {{ reader.connection[0].table | tojson }},
+                "jdbcUrl": {{ reader.jdbcUrl | tojson }}
+              }
+            ]
+          }
+        },
+        "writer": {
+          "name": "doriswriter",
+          "parameter": {
+            "username": "{{ writer.username }}",
+            "password": "{{ writer.password }}",
+            "column": {{ writer.column | tojson }},
+            "preSql": {{ writer.preSql | tojson }},
+            "connection": [
+              {
+                "table": ["{{ writer.table }}"],
+                "jdbcUrl": "{{ writer.jdbcUrl }}"
+              }
+            ],
+            "writeMode": "{{ writer.writeMode }}",
+            "batchSize": {{ writer.batchSize }}
+{% if unique_keys and unique_keys|length > 0 %}
+            ,"load_props": {
+              "format": "json",
+              "strip_outer_array": true
+            }
+{% endif %}
+          }
+        }
+      }
+    ]
+  }
+}
