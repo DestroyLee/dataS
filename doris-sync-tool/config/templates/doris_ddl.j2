@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS `{{ table_name }}` (
+{%- for col in columns %}
+    `{{ col.name }}` {{ col.type }}{% if not col.nullable %} NOT NULL{% endif %}{% if col.comment %} COMMENT '{{ col.comment }}'{% endif %}{% if not loop.last %},{% endif %}
+{%- endfor %}
+)
+{%- if unique_keys and unique_keys|length > 0 %}
+UNIQUE KEY ({{ unique_keys | join(', ') }})
+{%- endif %}
+DISTRIBUTED BY HASH({{ distribution_cols | join(', ') }}) BUCKETS {{ bucket_num }}
+PROPERTIES (
+    "replication_num" = "{{ replication }}"
+);

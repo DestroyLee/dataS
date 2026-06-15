@@ -1,0 +1,31 @@
+# 源数据库配置 (MySQL)
+source:
+  type: mysql
+  host: localhost
+  port: 3306
+  user: root
+  password: test_password
+  database: test_db
+
+# 目标数据库配置 (Doris)
+target:
+  type: doris
+  fe_host: localhost
+  http_port: 8030
+  query_port: 9030
+  user: root
+  password: test_password
+  database: ods_test_db
+
+# 默认配置
+defaults:
+  bucket_strategy: auto
+  replication: 1
+
+# 需要同步的表配置
+tables:
+  - table_name: t_order_info
+    unique_keys: ["order_id", "update_time"]
+    
+  - table_name: t_user_profile
+    unique_keys: ["user_id"]
