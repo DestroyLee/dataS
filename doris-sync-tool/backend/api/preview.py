@@ -80,12 +80,23 @@ async def get_table_meta(table_name: str, request: TableListRequest):
 @router.post("/ddl", response_model=PreviewResponse)
 async def preview_ddl(request: PreviewRequest):
     """预览 DDL SQL"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"Received preview request for table: {request.table_name}")
+    logger.debug(f"Request config: {request.config}")
+    
     try:
+        # 将 Pydantic 模型转换为字典，确保嵌套对象也正确转换
+        config_dict = request.config.model_dump(mode='json')
+        logger.debug(f"Config dict: {config_dict}")
+        
         result = await task_runner.execute_preview(
-            config=request.config.model_dump(),
+            config=config_dict,
             table_name=request.table_name
         )
         
+        logger.info(f"Preview generated successfully for table: {request.table_name}")
         return PreviewResponse(
             table_name=result["table_name"],
             ddl_sql=result["ddl_sql"],
@@ -94,6 +105,7 @@ async def preview_ddl(request: PreviewRequest):
             distribution_cols=result["distribution_cols"]
         )
     except Exception as e:
+        logger.error(f"Preview generation failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"预览生成失败：{str(e)}"

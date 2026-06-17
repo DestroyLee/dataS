@@ -1,1 +1,16 @@
-Nothing to output - the changes only include a source/config file (README.md) and no build artifacts, dependencies, or temp files that need to be ignored.
+```
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Dependencies
+node_modules/
+
+# Package manager
+package-lock.json
+
+# Logs
+*.log
+```
