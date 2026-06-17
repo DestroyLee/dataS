@@ -9,6 +9,20 @@ from pathlib import Path
 # 添加项目根目录到路径
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+# 配置日志 - 输出到 doris-sync-tool/logs 目录
+log_dir = Path(__file__).parent.parent.parent / "logs"
+log_dir.mkdir(exist_ok=True)
+log_file = log_dir / "backend.log"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file, encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+
 from src.adapters.mysql import MySQLAdapter
 from src.strategies.base import AutoBucketStrategy
 from src.generators import DDLGenerator, DataXGenerator
@@ -24,6 +38,7 @@ class TaskRunner:
         self.bucket_strategy = AutoBucketStrategy()
         self.ddl_generator = DDLGenerator(template_dir)
         self.datax_generator = DataXGenerator(template_dir)
+        logger.info(f"TaskRunner initialized with template_dir: {template_dir}")
     
     async def execute_preview(
         self, 
@@ -32,7 +47,13 @@ class TaskRunner:
         progress_callback: Optional[Callable] = None
     ) -> Dict[str, Any]:
         """执行预览"""
-        source_config = config['source']
+        logger.info(f"Starting preview for table: {table_name}")
+        logger.debug(f"Config: {config}")
+        
+        source_config = config.get('source')
+        if not source_config:
+            logger.error("Missing 'source' in config")
+            raise ValueError("配置中缺少 'source' 字段")
         
         # 连接数据库
         adapter = MySQLAdapter(source_config)
@@ -41,21 +62,43 @@ class TaskRunner:
             if progress_callback:
                 await progress_callback("connecting", "正在连接数据库...")
             
+            logger.info(f"Connecting to MySQL: {source_config.get('host')}:{source_config.get('port')}/{source_config.get('database')}")
             adapter.connect()
             
             if progress_callback:
                 await progress_callback("fetching_meta", f"获取表 {table_name} 元数据...")
             
             # 获取元数据
+            logger.info(f"Fetching metadata for table: {table_name}")
             table_meta = adapter.get_table_meta(table_name)
             
             # 计算分桶策略
+            tables_config = config.get('tables') or []
+            table_config = None
+            for tc in tables_config:
+                if isinstance(tc, dict) and tc.get('table_name') == table_name:
+                    table_config = tc
+                    break
+                elif hasattr(tc, 'table_name') and tc.table_name == table_name:
+                    table_config = tc
+                    break
+            
+            unique_keys = []
+            if table_config:
+                if isinstance(table_config, dict):
+                    unique_keys = table_config.get('unique_keys') or []
+                else:
+                    unique_keys = getattr(table_config, 'unique_keys', None) or []
+            
+            logger.info(f"Using unique_keys: {unique_keys}")
+            
             bucket_num = self.bucket_strategy.get_bucket_num(table_meta.row_count)
             dist_cols = self.bucket_strategy.get_distribution_columns(
                 table_meta,
-                {"table_name": table_name, "unique_keys": []}
+                {"table_name": table_name, "unique_keys": unique_keys}
             )
-            replication = config.get('defaults', {}).get('replication', 3)
+            replication = (config.get('defaults') or {}).get('replication', 3)
+            logger.info(f"Bucket num: {bucket_num}, Distribution cols: {dist_cols}, Replication: {replication}")
             
             if progress_callback:
                 await progress_callback("generating_ddl", "生成 DDL SQL...")
@@ -73,16 +116,23 @@ class TaskRunner:
                 await progress_callback("generating_datax", "生成 DataX 配置...")
             
             # 生成 DataX JSON
+            target_config = config.get('target')
+            if not target_config:
+                logger.error("Missing 'target' in config")
+                raise ValueError("配置中缺少 'target' 字段")
+            
+            logger.info(f"Generating DataX JSON for target: {target_config.get('fe_host')}:{target_config.get('query_port')}/{target_config.get('database')}")
             datax_json = self.datax_generator.generate(
                 table_meta=table_name,
                 source_config=source_config,
-                target_config=config['target'],
-                unique_keys=[]
+                target_config=target_config,
+                unique_keys=unique_keys
             )
             
             if progress_callback:
                 await progress_callback("complete", "预览生成完成")
             
+            logger.info(f"Preview generated successfully for table: {table_name}")
             return {
                 "table_name": table_name,
                 "ddl_sql": ddl_sql,
@@ -101,8 +151,12 @@ class TaskRunner:
                 ]
             }
             
+        except Exception as e:
+            logger.error(f"Error generating preview: {e}", exc_info=True)
+            raise
         finally:
             adapter.disconnect()
+            logger.info("Database connection closed")
     
     async def execute_sync(
         self,
@@ -151,7 +205,7 @@ class TaskRunner:
                         table_meta,
                         {"table_name": table_name, "unique_keys": []}
                     )
-                    replication = config.get('defaults', {}).get('replication', 3)
+                    replication = (config.get('defaults') or {}).get('replication', 3)
                     
                     # 生成 DDL
                     ddl_sql = self.ddl_generator.generate(
