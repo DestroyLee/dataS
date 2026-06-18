@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
-from backend.api import config_router, preview_router, tasks_router
+from backend.api import config_router, preview_router, tasks_router, db_connection_router
 
 # 配置日志
 logging.basicConfig(
@@ -31,6 +31,7 @@ app.add_middleware(
 app.include_router(config_router)
 app.include_router(preview_router)
 app.include_router(tasks_router)
+app.include_router(db_connection_router)
 
 
 @app.get("/")

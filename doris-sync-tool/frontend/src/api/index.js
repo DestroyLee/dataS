@@ -23,6 +23,17 @@ export const configApi = {
   delete: (id) => request.delete(`/config/${id}`)
 }
 
+// 数据库连接管理 API
+export const dbConnectionApi = {
+  list: () => request.get('/db-connection/list'),
+  get: (id) => request.get(`/db-connection/${id}`),
+  save: (name, connection) => request.post('/db-connection/save', { name, connection }),
+  update: (id, name, connection) => request.put(`/db-connection/${id}`, { name, connection }),
+  delete: (id) => request.delete(`/db-connection/${id}`),
+  test: (connection) => request.post('/db-connection/test', connection),
+  listDatabases: (connection) => request.post('/db-connection/databases/list', connection)
+}
+
 // 表发现 API
 export const tableApi = {
   discover: (params) => request.post('/preview/tables/discover', params),

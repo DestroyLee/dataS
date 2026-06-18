@@ -17,7 +17,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="选择表">
-          <el-select v-model="previewForm.tableName" placeholder="选择表">
+          <el-select v-model="previewForm.tableName" placeholder="选择表" @change="onTableChange">
             <el-option
               v-for="table in availableTables"
               :key="table"
@@ -32,6 +32,24 @@
           </el-button>
         </el-form-item>
       </el-form>
+      
+      <!-- 显示已选择的配置信息 -->
+      <el-alert
+        v-if="currentConfig && previewForm.tableName"
+        title="当前选择"
+        type="info"
+        show-icon
+        style="margin-top: 15px;"
+      >
+        <template #default>
+          <div style="line-height: 1.8;">
+            <div><strong>配置名称：</strong>{{ currentConfigName }}</div>
+            <div><strong>源数据库：</strong>{{ currentConfig?.source?.host }}:{{ currentConfig?.source?.port }} / {{ currentConfig?.source?.database }}</div>
+            <div><strong>目标数据库：</strong>{{ currentConfig?.target?.fe_host }}:{{ currentConfig?.target?.query_port }} / {{ currentConfig?.target?.database }}</div>
+            <div><strong>当前表：</strong>{{ previewForm.tableName }}</div>
+          </div>
+        </template>
+      </el-alert>
     </el-card>
     
     <el-row :gutter="20" style="margin-top: 20px;">
@@ -97,6 +115,7 @@ const previewForm = ref({
 const previewResult = ref({})
 
 const currentConfig = ref(null)
+const currentConfigName = ref('')
 
 const loadConfigs = async () => {
   try {
@@ -113,14 +132,22 @@ const loadConfig = async () => {
   try {
     const res = await configApi.get(previewForm.value.configId)
     currentConfig.value = res.config
+    currentConfigName.value = res.name
     availableTables.value = res.config.tables?.map(t => t.table_name) || []
     
     if (availableTables.value.length > 0) {
       previewForm.value.tableName = availableTables.value[0]
+      onTableChange()
+    } else {
+      previewForm.value.tableName = ''
     }
   } catch (error) {
     ElMessage.error('加载配置详情失败')
   }
+}
+
+const onTableChange = () => {
+  // 表选择变化时的处理，可以在这里添加额外逻辑
 }
 
 const generatePreview = async () => {
